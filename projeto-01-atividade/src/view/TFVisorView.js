@@ -7,18 +7,28 @@ export class TFVisorView extends View {
     #logs = [];
     #lossPoints = [];
     #accPoints = [];
+    #toggleVisorBtn = document.querySelector('#toggleVisorBtn');
+
     constructor() {
         super();
 
+        // Visor stays closed until training starts
+        this.#toggleVisorBtn.addEventListener('click', () => {
+            tfvis.visor().toggle();
+        });
+    }
+
+    openVisor() {
         tfvis.visor().open();
+        this.#toggleVisorBtn.classList.remove('hidden');
     }
 
     renderData(data) {
-
         this.#weights = data.weights;
         this.#catalog = data.catalog;
         this.#users = data.users;
     }
+
     resetDashboard() {
         this.#weights = null;
         this.#catalog = [];
@@ -61,10 +71,5 @@ export class TFVisorView extends View {
                 height: 300
             }
         );
-
     }
-
-
-
-
 }

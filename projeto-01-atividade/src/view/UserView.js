@@ -109,7 +109,7 @@ export class UserView extends View {
 
                 const product = JSON.parse(purchaseElement.dataset.product);
                 const userId = this.getSelectedUserId();
-                const element = purchaseElement.closest('.col-md-6');
+                const element = purchaseElement.closest('.purchase-item');
 
                 this.#onPurchaseRemove({ element, userId, product });
 

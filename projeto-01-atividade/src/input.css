@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@layer utilities {
+    .past-purchase-highlight {
+        background-color: #d1fae5;
+        border-left-color: #10b981;
+    }
+}

@@ -23,6 +23,7 @@ export class TFVisorController {
     setupCallbacks() {
         this.#events.onTrainModel(() => {
             this.#tfVisorView.resetDashboard();
+            this.#tfVisorView.openVisor();
         });
 
         this.#events.onTFVisLogs(

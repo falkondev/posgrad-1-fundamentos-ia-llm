@@ -5,7 +5,10 @@
     "main": "index.js",
     "type": "module",
     "scripts": {
-        "start": "browser-sync -w . --server --files 'index.html, data/*.json, js/*.js' --port 3000",
+        "build:css": "npx @tailwindcss/cli -i ./src/input.css -o ./style.css",
+        "watch:css": "npx @tailwindcss/cli -i ./src/input.css -o ./style.css --watch",
+        "serve": "browser-sync -w . --server --files 'index.html, style.css, src/**/*.js, src/**/*.html' --port 3000",
+        "start": "concurrently \"npm run watch:css\" \"npm run serve\"",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "keywords": [
@@ -20,6 +23,9 @@
         "neo4j-driver": "^5.26.0"
     },
     "devDependencies": {
-        "browser-sync": "^3.0.4"
+        "@tailwindcss/cli": "^4.2.1",
+        "browser-sync": "^3.0.4",
+        "concurrently": "^9.2.1",
+        "tailwindcss": "^4.2.1"
     }
 }
