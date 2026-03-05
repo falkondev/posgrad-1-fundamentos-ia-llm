@@ -16,6 +16,9 @@
     ],
     "author": "",
     "license": "ISC",
+    "dependencies": {
+        "neo4j-driver": "^5.26.0"
+    },
     "devDependencies": {
         "browser-sync": "^3.0.4"
     }
