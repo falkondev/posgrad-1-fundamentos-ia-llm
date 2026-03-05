@@ -127,6 +127,7 @@ function encodeUser(user, context) {
 }
 
 function createTrainingData(context) {
+    console.log('Criando dados de treinamento a partir do contexto...');
     const inputs = [];
     const labels = [];
 
@@ -155,6 +156,7 @@ function createTrainingData(context) {
 }
 
 async function configureNeuralNetAndTrain(trainData) {
+    console.log('Configurando rede neural e iniciando treinamento...');
     const model = tf.sequential();
 
     model.add(tf.layers.dense({
@@ -203,6 +205,19 @@ async function configureNeuralNetAndTrain(trainData) {
     return model;
 }
 
+async function buildContext(products, users) {
+    const context = makeContext(products, users);
+    context.productVectors = products.map(product => ({
+        name: product.name,
+        meta: { ...product },
+        vector: encodeProduct(product, context).dataSync(),
+    }));
+
+    await saveProductVectorsToNeo4j(context.productVectors);
+
+    return context;
+}
+
 /**
  * Salva os vetores de produtos no Neo4j via API backend
  * Limpa dados antigos a cada execução (truncate + insert)
@@ -243,32 +258,71 @@ async function saveProductVectorsToNeo4j(productVectors) {
     }
 }
 
-async function trainModel({ users }) {
-    console.log('Training model with users:', users)
+async function loadModelFromServer() {
+    console.log('Carregando modelo salvo do servidor...');
 
-    postMessage({ type: workerEvents.progressUpdate, progress: { progress: 50 } });
+    postMessage({ type: workerEvents.trainingLog, message: 'Carregando modelo salvo...' });
+    _model = await tf.loadLayersModel('http://localhost:3001/model/model.json');
+    postMessage({ type: workerEvents.trainingLog, message: '✓ Modelo carregado do arquivo.' });
+}
 
-    const products = await (await fetch('/data/products.json')).json();
-    const context = makeContext(products, users);
+async function saveModelToServer(model) {
+    console.log('Salvando modelo treinado no servidor...');
 
-    context.productVectors = products.map(product => {
-        return {
-            name: product.name,
-            meta: { ...product },
-            vector: encodeProduct(product, context).dataSync(),
+    try {
+        await model.save(tf.io.withSaveHandler(async (artifacts) => {
+            const weightData = Array.from(new Uint8Array(artifacts.weightData));
+
+            const response = await fetch('http://localhost:3001/api/model/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    modelTopology: artifacts.modelTopology,
+                    weightSpecs: artifacts.weightSpecs,
+                    weightData,
+                }),
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                postMessage({ type: workerEvents.trainingLog, message: '✓ Modelo salvo em arquivo (model.json + weights.bin).' });
+            }
+
+            return { modelArtifactsInfo: { dateSaved: new Date(), modelTopologyType: 'JSON' } };
+        }));
+    } catch (error) {
+        console.error('Erro ao salvar modelo:', error);
+        postMessage({ type: workerEvents.trainingLog, message: `⚠️ Não foi possível salvar o modelo: ${error.message}` });
+    }
+}
+
+async function setupModel({ users, forceRetrain = false } = {}) {
+    try {
+        postMessage({ type: workerEvents.progressUpdate, progress: { progress: 50 } });
+
+        const [products, resolvedUsers] = await Promise.all([
+            fetch('/data/products.json').then(r => r.json()),
+            users ? Promise.resolve(users) : fetch('/data/users.json').then(r => r.json()),
+        ]);
+
+        _globalCtx = await buildContext(products, resolvedUsers);
+
+        const { exists } = await fetch('http://localhost:3001/api/model/exists').then(r => r.json());
+
+        if (!forceRetrain && exists) {
+            await loadModelFromServer();
+        } else {
+            const trainData = createTrainingData(_globalCtx);
+            _model = await configureNeuralNetAndTrain(trainData);
+            await saveModelToServer(_model);
         }
-    });
 
-    _globalCtx = context;
-
-    // Salvar vetores no Neo4j
-    await saveProductVectorsToNeo4j(context.productVectors);
-
-    const trainData = createTrainingData(context);
-    _model = await configureNeuralNetAndTrain(trainData);
-
-    postMessage({ type: workerEvents.progressUpdate, progress: { progress: 100 } });
-    postMessage({ type: workerEvents.trainingComplete });
+        postMessage({ type: workerEvents.progressUpdate, progress: { progress: 100 } });
+        postMessage({ type: workerEvents.trainingComplete });
+    } catch (error) {
+        console.error('Erro ao inicializar modelo:', error);
+        postMessage({ type: workerEvents.trainingLog, message: `⚠️ Erro ao inicializar modelo: ${error.message}` });
+    }
 }
 async function recommend(user, ctx) {
     console.log('will recommend for user:', user)
@@ -333,7 +387,8 @@ async function recommend(user, ctx) {
 
 
 const handlers = {
-    [workerEvents.trainModel]: trainModel,
+    [workerEvents.trainModel]: (d) => setupModel({ ...d, forceRetrain: true }),
+    [workerEvents.loadModel]: setupModel,
     [workerEvents.recommend]: (d) => recommend(d.user, _globalCtx),
 };
 

@@ -1,5 +1,11 @@
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { Neo4jService } from './services/neo4jService.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const MODEL_DIR = path.join(__dirname, '..', 'model');
 
 const PORT = process.env.API_PORT || 3001;
 
@@ -77,6 +83,61 @@ const server = http.createServer(async (req, res) => {
                 res.end(JSON.stringify({ success: false, error: error.message }));
             }
         });
+        return;
+    }
+
+    // Check if saved model exists
+    if (req.url === '/api/model/exists' && req.method === 'GET') {
+        const exists = fs.existsSync(path.join(MODEL_DIR, 'model.json'));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ exists }));
+        return;
+    }
+
+    // Save model files (topology, weights, context)
+    if (req.url === '/api/model/save' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const { modelTopology, weightSpecs, weightData } = JSON.parse(body);
+
+                fs.mkdirSync(MODEL_DIR, { recursive: true });
+
+                // Save model.json in standard TF.js format
+                const modelJson = {
+                    modelTopology,
+                    weightsManifest: [{ paths: ['weights.bin'], weights: weightSpecs }],
+                };
+                fs.writeFileSync(path.join(MODEL_DIR, 'model.json'), JSON.stringify(modelJson));
+
+                // Save weights.bin as binary
+                const weightsBuf = Buffer.from(weightData);
+                fs.writeFileSync(path.join(MODEL_DIR, 'weights.bin'), weightsBuf);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true }));
+            } catch (error) {
+                console.error('Error saving model:', error);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: error.message }));
+            }
+        });
+        return;
+    }
+
+    // Serve model static files (model.json, weights.bin, context.json)
+    if (req.url.startsWith('/model/') && req.method === 'GET') {
+        const filename = req.url.slice('/model/'.length);
+        const filePath = path.join(MODEL_DIR, filename);
+        if (!filePath.startsWith(MODEL_DIR) || !fs.existsSync(filePath)) {
+            res.writeHead(404);
+            res.end();
+            return;
+        }
+        const contentType = filename.endsWith('.json') ? 'application/json' : 'application/octet-stream';
+        res.writeHead(200, { 'Content-Type': contentType });
+        fs.createReadStream(filePath).pipe(res);
         return;
     }
 

@@ -13,6 +13,7 @@ export class WorkerController {
 
     async init() {
         this.setupCallbacks();
+        this.#worker.postMessage({ action: workerEvents.loadModel });
     }
 
     static init(deps) {
