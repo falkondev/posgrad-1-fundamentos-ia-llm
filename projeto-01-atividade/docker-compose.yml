@@ -38,6 +38,22 @@ services:
       timeout: 5s
       retries: 10
 
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root}
+      - MYSQL_DATABASE=projeto_01
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./data/migration.sql:/docker-entrypoint-initdb.d/migration.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   neo4j:
     image: neo4j:2026.01.4
     ports:
@@ -57,3 +73,4 @@ services:
 volumes:
   neo4j_data:
   neo4j_logs:
+  mysql_data:

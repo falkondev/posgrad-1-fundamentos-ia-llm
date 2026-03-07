@@ -1,0 +1,10 @@
+{
+  "name": "import-scripts",
+  "version": "1.0.0",
+  "description": "Scripts de importacao do CSV para MySQL",
+  "type": "commonjs",
+  "dependencies": {
+    "@faker-js/faker": "^9.0.0",
+    "mysql2": "^3.9.0"
+  }
+}
