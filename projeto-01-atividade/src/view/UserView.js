@@ -171,6 +171,6 @@ export class UserView extends View {
     }
 
     getSelectedUserId() {
-        return this.#selectedUserId?.value ? Number(this.#selectedUserId.value) : null;
+        return this.#selectedUserId?.value ? this.#selectedUserId.value : null;
     }
 }
