@@ -3,11 +3,10 @@ import { workerEvents } from "../events/constants.js";
 export class WorkerController {
     #worker;
     #events;
-    #alreadyTrained = false;
+    #isAutoRecommend = false;
     constructor({ worker, events }) {
         this.#worker = worker;
         this.#events = events;
-        this.#alreadyTrained = false;
         this.init();
     }
 
@@ -21,19 +20,18 @@ export class WorkerController {
     }
 
     setupCallbacks() {
-        this.#events.onTrainModel((data) => {
-            this.#alreadyTrained = false;
-            this.triggerTrain(data);
-        });
-        this.#events.onTrainingComplete(() => {
-            this.#alreadyTrained = true;
+        this.#events.onTrainModel(() => {
+            this.triggerTrain();
         });
 
         this.#events.onRecommend((data) => {
-            if (!this.#alreadyTrained) return
-
+            this.#isAutoRecommend = false;
             this.triggerRecommend(data);
+        });
 
+        this.#events.onAutoRecommend((user) => {
+            this.#isAutoRecommend = true;
+            this.triggerRecommend(user);
         });
 
         const eventsToIgnoreLogs = [
@@ -49,29 +47,57 @@ export class WorkerController {
 
             if (event.data.type === workerEvents.progressUpdate) {
                 this.#events.dispatchProgressUpdate(event.data.progress);
+                this.#events.dispatchWorkerLog({ type: 'progress:update', message: `Progresso: ${event.data.progress?.progress ?? 0}%`, timestamp: Date.now() });
             }
 
             if (event.data.type === workerEvents.trainingComplete) {
                 this.#events.dispatchTrainingComplete(event.data);
+                this.#events.dispatchWorkerLog({ type: 'training:complete', message: 'Modelo carregado/completo', timestamp: Date.now() });
             }
 
-            // Handle tfvis data from the worker for initial visualization
             if (event.data.type === workerEvents.tfVisData) {
                 this.#events.dispatchTFVisorData(event.data.data);
+                this.#events.dispatchWorkerLog({ type: 'tfvis:data', message: 'Dados tfvis recebidos', timestamp: Date.now() });
             }
 
-            // Handle tfvis recommendation data
             if (event.data.type === workerEvents.trainingLog) {
                 this.#events.dispatchTFVisLogs(event.data);
+                const isEpoch = event.data.epoch !== undefined;
+                if (isEpoch) {
+                    this.#events.dispatchWorkerLog({
+                        type: 'training:log',
+                        message: event.data.message,
+                        timestamp: Date.now(),
+                        epoch: event.data.epoch,
+                        loss: event.data.loss,
+                        accuracy: event.data.accuracy,
+                        val_loss: event.data.val_loss,
+                        val_accuracy: event.data.val_accuracy,
+                        isEpoch: true,
+                    });
+                } else {
+                    this.#events.dispatchWorkerLog({ type: 'training:log', message: event.data.message, timestamp: Date.now() });
+                }
             }
+
             if (event.data.type === workerEvents.recommend) {
+                const wasAuto = this.#isAutoRecommend;
+                this.#isAutoRecommend = false;
+                if (event.data.error === 'MODEL_NOT_TRAINED') {
+                    if (!wasAuto) {
+                        this.#events.dispatchModelError({ message: 'Modelo não treinado' });
+                    }
+                    this.#events.dispatchWorkerLog({ type: 'error', message: 'Erro: modelo não treinado', timestamp: Date.now() });
+                    return;
+                }
                 this.#events.dispatchRecommendationsReady(event.data);
+                this.#events.dispatchWorkerLog({ type: 'recommend', message: `Recomendações geradas: ${event.data.recommendations?.length ?? 0} produtos`, timestamp: Date.now() });
             }
         };
     }
 
-    triggerTrain(users) {
-        this.#worker.postMessage({ action: workerEvents.trainModel, users });
+    triggerTrain() {
+        this.#worker.postMessage({ action: workerEvents.trainModel });
     }
 
     triggerRecommend(user) {

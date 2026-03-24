@@ -3,6 +3,10 @@ export class ProductController {
     #currentUser = null;
     #events;
     #productService;
+    #searchInput;
+    #searchTimeout = null;
+    #showingRecommendations = false;
+
     constructor({
         productView,
         events,
@@ -21,20 +25,53 @@ export class ProductController {
     async init() {
         this.setupCallbacks();
         this.setupEventListeners();
+        this.setupSearch();
+
+        await this.#productView.loadFilters(this.#productService);
+        this.#productView.attachFilterListeners();
+        this.#productView.registerFilterChangeCallback(() => this.#handleFilterChange());
+
         const products = await this.#productService.getProducts();
         this.#productView.render(products, true);
     }
 
-    setupEventListeners() {
+    setupSearch() {
+        this.#searchInput = document.querySelector('#productSearch');
+        if (!this.#searchInput) return;
 
+        this.#searchInput.addEventListener('input', () => {
+            this.#showingRecommendations = false;
+            clearTimeout(this.#searchTimeout);
+            this.#searchTimeout = setTimeout(() => {
+                this.#doSearch();
+            }, 300);
+        });
+    }
+
+    async #doSearch() {
+        const query = this.#searchInput?.value.trim() ?? '';
+        const category = this.#productView.getSelectedCategory();
+        const brand = this.#productView.getSelectedBrand();
+        const products = await this.#productService.searchProducts(query, 100, category, brand);
+        this.#productView.render(products, !this.#currentUser);
+    }
+
+    async #handleFilterChange() {
+        this.#showingRecommendations = false;
+        await this.#doSearch();
+    }
+
+    setupEventListeners() {
         this.#events.onUserSelected((user) => {
             this.#currentUser = user;
             this.#productView.onUserSelected(user);
-            this.#events.dispatchRecommend(user)
-        })
+            // Do NOT auto-dispatch recommend — user must click "Run Recommendation"
+        });
 
         this.#events.onRecommendationsReady(({ recommendations }) => {
-            this.#productView.render(recommendations, false);
+            const top10 = recommendations.slice(0, 10).map((r, i) => ({ ...r, rank: i + 1 }));
+            this.#showingRecommendations = true;
+            this.#productView.render(top10, false);
         });
     }
 
@@ -46,5 +83,4 @@ export class ProductController {
         const user = this.#currentUser;
         this.#events.dispatchPurchaseAdded({ user, product });
     }
-
 }

@@ -3,7 +3,6 @@ export class ModelController {
     #userService;
     #events;
     #currentUser = null;
-    #alreadyTrained = false;
     constructor({
         modelView,
         userService,
@@ -30,46 +29,37 @@ export class ModelController {
 
         this.#events.onUserSelected((user) => {
             this.#currentUser = user;
-            if (!this.#alreadyTrained) return
             this.#modelView.enableRecommendButton();
         });
 
         this.#events.onTrainingComplete(() => {
-            this.#alreadyTrained = true;
-            if (!this.#currentUser) return
-            this.#modelView.enableRecommendButton();
-        })
-
-        this.#events.onUsersUpdated(
-            async (...data) => {
-                return this.refreshUsersPurchaseData(...data);
+            if (this.#currentUser) {
+                this.#modelView.enableRecommendButton();
             }
-        );
+        });
+
         this.#events.onProgressUpdate(
             (progress) => {
                 this.handleTrainingProgressUpdate(progress);
             }
         );
 
+        this.#events.onModelError(({ message }) => {
+            this.#modelView.showError(message);
+        });
     }
 
-
     async handleTrainModel() {
-        const users = await this.#userService.getUsers();
-
-        this.#events.dispatchTrainModel(users);
+        this.#events.dispatchTrainModel({});
     }
 
     handleTrainingProgressUpdate(progress) {
         this.#modelView.updateTrainingProgress(progress);
     }
+
     async handleRunRecommendation() {
         const currentUser = this.#currentUser;
-        const updatedUser = await this.#userService.getUserById(currentUser.id);
-        this.#events.dispatchRecommend(updatedUser);
-    }
-
-    async refreshUsersPurchaseData({ users }) {
-        this.#modelView.renderAllUsersPurchases(users);
+        const updatedUser = await this.#userService.getUserWithPurchases(currentUser.id);
+        this.#events.dispatchRecommend(updatedUser || currentUser);
     }
 }

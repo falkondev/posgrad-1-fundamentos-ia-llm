@@ -1,14 +1,17 @@
 import { View } from './View.js';
 
 export class UserView extends View {
-    #userSelect = document.querySelector('#userSelect');
+    #userSearch = document.querySelector('#userSearch');
+    #userSearchResults = document.querySelector('#userSearchResults');
+    #selectedUserId = document.querySelector('#selectedUserId');
     #userAge = document.querySelector('#userAge');
     #pastPurchasesList = document.querySelector('#pastPurchasesList');
 
     #purchaseTemplate;
     #onUserSelect;
     #onPurchaseRemove;
-    #pastPurchaseElements = [];
+    #searchTimeout = null;
+    #onSearch;
 
     constructor() {
         super();
@@ -17,7 +20,7 @@ export class UserView extends View {
 
     async init() {
         this.#purchaseTemplate = await this.loadTemplate('./src/view/templates/past-purchase.html');
-        this.attachUserSelectListener();
+        this.attachSearchListener();
     }
 
     registerUserSelectCallback(callback) {
@@ -28,16 +31,78 @@ export class UserView extends View {
         this.#onPurchaseRemove = callback;
     }
 
-    renderUserOptions(users) {
-        const options = users.map(user => {
-            return `<option value="${user.id}">${user.name}</option>`;
-        }).join('');
+    registerSearchCallback(callback) {
+        this.#onSearch = callback;
+    }
 
-        this.#userSelect.innerHTML += options;
+    attachSearchListener() {
+        this.#userSearch?.addEventListener('input', () => {
+            clearTimeout(this.#searchTimeout);
+            const query = this.#userSearch.value.trim();
+
+            if (!query) {
+                this.#hideResults();
+                return;
+            }
+
+            this.#searchTimeout = setTimeout(() => {
+                if (this.#onSearch) this.#onSearch(query);
+            }, 300);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!this.#userSearch?.contains(e.target) && !this.#userSearchResults?.contains(e.target)) {
+                this.#hideResults();
+            }
+        });
+    }
+
+    renderSearchResults(users) {
+        if (!this.#userSearchResults) return;
+
+        if (!users.length) {
+            this.#userSearchResults.innerHTML = '<div class="px-3 py-2 text-sm text-gray-400">Nenhum usuário encontrado</div>';
+        } else {
+            this.#userSearchResults.innerHTML = users.map(user => `
+                <div class="user-result px-3 py-2 text-sm text-gray-800 cursor-pointer hover:bg-blue-50 transition-colors"
+                     data-user='${JSON.stringify(user)}'>
+                    <span class="font-medium">${user.name}</span>
+                    <span class="text-gray-400 text-xs ml-1">· Age ${user.age}</span>
+                </div>
+            `).join('');
+
+            this.#userSearchResults.querySelectorAll('.user-result').forEach(el => {
+                el.addEventListener('click', () => {
+                    const user = JSON.parse(el.dataset.user);
+                    this.selectUser(user);
+                });
+            });
+        }
+
+        this.#userSearchResults.classList.remove('hidden');
+    }
+
+    selectUser(user) {
+        if (this.#userSearch) this.#userSearch.value = user.name;
+        if (this.#selectedUserId) this.#selectedUserId.value = user.id;
+        this.#hideResults();
+
+        if (this.#onUserSelect) this.#onUserSelect(user.id);
+    }
+
+    clearSelection() {
+        if (this.#userSearch) this.#userSearch.value = '';
+        if (this.#selectedUserId) this.#selectedUserId.value = '';
+        if (this.#userAge) this.#userAge.value = '';
+        if (this.#pastPurchasesList) this.#pastPurchasesList.innerHTML = '';
+    }
+
+    #hideResults() {
+        this.#userSearchResults?.classList.add('hidden');
     }
 
     renderUserDetails(user) {
-        this.#userAge.value = user.age;
+        if (this.#userAge) this.#userAge.value = user.age;
     }
 
     renderPastPurchases(pastPurchases) {
@@ -60,7 +125,6 @@ export class UserView extends View {
     }
 
     addPastPurchase(product) {
-
         if (this.#pastPurchasesList.innerHTML.includes('No past purchases found')) {
             this.#pastPurchasesList.innerHTML = '';
         }
@@ -82,31 +146,11 @@ export class UserView extends View {
         this.attachPurchaseClickHandlers();
     }
 
-    attachUserSelectListener() {
-        this.#userSelect.addEventListener('change', (event) => {
-            const userId = event.target.value ? Number(event.target.value) : null;
-
-            if (userId) {
-                if (this.#onUserSelect) {
-                    this.#onUserSelect(userId);
-                }
-            } else {
-                this.#userAge.value = '';
-                this.#pastPurchasesList.innerHTML = '';
-            }
-        });
-    }
-
     attachPurchaseClickHandlers() {
-        this.#pastPurchaseElements = [];
-
         const purchaseElements = document.querySelectorAll('.past-purchase');
 
         purchaseElements.forEach(purchaseElement => {
-            this.#pastPurchaseElements.push(purchaseElement);
-
             purchaseElement.onclick = (event) => {
-
                 const product = JSON.parse(purchaseElement.dataset.product);
                 const userId = this.getSelectedUserId();
                 const element = purchaseElement.closest('.purchase-item');
@@ -118,18 +162,15 @@ export class UserView extends View {
 
                 setTimeout(() => {
                     element.remove();
-
                     if (document.querySelectorAll('.past-purchase').length === 0) {
                         this.renderPastPurchases([]);
                     }
-
                 }, 500);
-
-            }
+            };
         });
     }
 
     getSelectedUserId() {
-        return this.#userSelect.value ? Number(this.#userSelect.value) : null;
+        return this.#selectedUserId?.value ? Number(this.#selectedUserId.value) : null;
     }
 }

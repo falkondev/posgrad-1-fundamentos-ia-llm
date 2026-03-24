@@ -2,12 +2,14 @@ import { UserController } from './controller/UserController.js';
 import { ProductController } from './controller/ProductController.js';
 import { ModelController } from './controller/ModelTrainingController.js';
 import { TFVisorController } from './controller/TFVisorController.js';
+import { EventLogController } from './controller/EventLogController.js';
 import { TFVisorView } from './view/TFVisorView.js';
 import { UserService } from './service/UserService.js';
 import { ProductService } from './service/ProductService.js';
 import { UserView } from './view/UserView.js';
 import { ProductView } from './view/ProductView.js';
 import { ModelView } from './view/ModelTrainingView.js';
+import { EventLogView } from './view/EventLogView.js';
 import Events from './events/events.js';
 import { WorkerController } from './controller/WorkerController.js';
 
@@ -20,16 +22,14 @@ const userView = new UserView();
 const productView = new ProductView();
 const modelView = new ModelView();
 const tfVisorView = new TFVisorView();
+const eventLogView = new EventLogView();
+
 const mlWorker = new Worker('/src/workers/modelTrainingWorker.js', { type: 'module' });
 
-// Set up worker message handler
-const w = WorkerController.init({
+WorkerController.init({
     worker: mlWorker,
     events: Events
 });
-
-await userService.getDefaultUsers();
-
 
 ModelController.init({
     modelView,
@@ -42,6 +42,11 @@ TFVisorController.init({
     events: Events,
 });
 
+EventLogController.init({
+    eventLogView,
+    events: Events,
+});
+
 ProductController.init({
     productView,
     userService,
@@ -49,18 +54,9 @@ ProductController.init({
     events: Events,
 });
 
-
-const userController = UserController.init({
+await UserController.init({
     userView,
     userService,
     productService,
     events: Events,
-});
-
-
-userController.renderUsers({
-    "id": 99,
-    "name": "Josézin da Silva",
-    "age": 30,
-    "purchases": []
 });

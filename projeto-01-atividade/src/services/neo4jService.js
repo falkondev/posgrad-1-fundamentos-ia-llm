@@ -9,37 +9,34 @@ const driver = neo4j.driver(
     { disableLosslessIntegers: true }
 );
 
+const BATCH_SIZE = 500;
+
 export class Neo4jService {
     /**
-     * Salva os vetores de produtos no Neo4j
+     * Salva os vetores de produtos no Neo4j usando UNWIND em batches de 500
      * Remove todos os produtos antigos e insere novos
      */
     static async saveProductVectors(productVectors) {
         const session = driver.session();
         try {
-            // Limpar dados antigos
             await session.run('MATCH (p:Product) DETACH DELETE p');
 
-            // Inserir novos produtos com seus vetores
-            for (const product of productVectors) {
-                const query = `
-                    CREATE (p:Product {
-                        name: $name,
-                        category: $category,
-                        color: $color,
-                        price: $price,
-                        vector: $vector
-                    })
-                    RETURN p
-                `;
+            for (let i = 0; i < productVectors.length; i += BATCH_SIZE) {
+                const batch = productVectors.slice(i, i + BATCH_SIZE).map(pv => ({
+                    id: pv.meta?.id ?? pv.id,
+                    name: pv.meta?.name ?? pv.name,
+                    vector: Array.from(pv.vector),
+                }));
 
-                await session.run(query, {
-                    name: product.meta.name,
-                    category: product.meta.category,
-                    color: product.meta.color,
-                    price: product.meta.price,
-                    vector: Array.from(product.vector),
-                });
+                await session.run(
+                    `UNWIND $batch AS item
+                     CREATE (p:Product {
+                         id: item.id,
+                         name: item.name,
+                         vector: item.vector
+                     })`,
+                    { batch }
+                );
             }
 
             console.log(`✓ ${productVectors.length} produtos salvos no Neo4j`);
@@ -63,7 +60,7 @@ export class Neo4jService {
                 name: record.get('p').properties.name,
                 vector: record.get('p').properties.vector,
                 category: record.get('p').properties.category,
-                color: record.get('p').properties.color,
+                brand: record.get('p').properties.brand,
                 price: record.get('p').properties.price,
             }));
         } catch (error) {
@@ -87,7 +84,7 @@ export class Neo4jService {
             const query = `
                 MATCH (p:Product)
                 WITH p, vector.similarity.cosine(p.vector, $vector) AS similarity
-                RETURN p.name AS name, p.category AS category, p.color AS color,
+                RETURN p.id AS id, p.name AS name, p.category AS category, p.brand AS brand,
                        p.price AS price, p.vector AS vector, similarity
                 ORDER BY similarity DESC
                 LIMIT $limit
@@ -96,9 +93,10 @@ export class Neo4jService {
             const result = await session.run(query, { vector, limit: limitInt });
 
             return result.records.map(record => ({
+                id: record.get('id'),
                 name: record.get('name'),
                 category: record.get('category'),
-                color: record.get('color'),
+                brand: record.get('brand'),
                 price: record.get('price'),
                 vector: record.get('vector'),
                 similarity: record.get('similarity'),

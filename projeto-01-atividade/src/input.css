@@ -6,3 +6,22 @@
         border-left-color: #10b981;
     }
 }
+
+@layer components {
+    .log-entry {
+        animation: log-fade-in 0.2s ease-out;
+        padding: 0.125rem 0;
+    }
+
+    .log-badge {
+        display: inline-block;
+        padding: 0 0.35rem;
+        border-radius: 0.25rem;
+        font-size: 0.7rem;
+    }
+}
+
+@keyframes log-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}

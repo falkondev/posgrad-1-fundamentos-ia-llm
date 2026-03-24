@@ -27,6 +27,18 @@ export default class Events {
         document.dispatchEvent(event);
     }
 
+    static onAutoRecommend(callback) {
+        document.addEventListener(events.autoRecommend, (event) => {
+            return callback(event.detail);
+        });
+    }
+    static dispatchAutoRecommend(data) {
+        const event = new CustomEvent(events.autoRecommend, {
+            detail: data
+        });
+        document.dispatchEvent(event);
+    }
+
     static onRecommendationsReady(callback) {
         document.addEventListener(events.recommendationsReady, (event) => {
             return callback(event.detail);
@@ -140,9 +152,27 @@ export default class Events {
         document.dispatchEvent(event);
     }
 
-    static onProgressUpdate(callback) {
-        document.addEventListener(events.modelProgressUpdate, (event) => {
+    static onModelError(callback) {
+        document.addEventListener(events.modelError, (event) => {
             return callback(event.detail);
         });
+    }
+    static dispatchModelError(data) {
+        const event = new CustomEvent(events.modelError, {
+            detail: data
+        });
+        document.dispatchEvent(event);
+    }
+
+    static onWorkerLog(callback) {
+        document.addEventListener(events.workerLog, (event) => {
+            return callback(event.detail);
+        });
+    }
+    static dispatchWorkerLog(data) {
+        const event = new CustomEvent(events.workerLog, {
+            detail: data
+        });
+        document.dispatchEvent(event);
     }
 }

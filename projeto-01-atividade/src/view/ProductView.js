@@ -1,13 +1,19 @@
 import { View } from './View.js';
 
 export class ProductView extends View {
-    // DOM elements
     #productList = document.querySelector('#productList');
+    #loadMoreContainer = document.querySelector('#loadMoreContainer');
+    #categoryFilter = document.querySelector('#categoryFilter');
+    #brandFilter = document.querySelector('#brandFilter');
 
-    #buttons;
-    // Templates and callbacks
     #productTemplate;
     #onBuyProduct;
+    #onFilterChange;
+
+    // Pagination state
+    #allProducts = [];
+    #displayedCount = 0;
+    #pageSize = 50;
 
     constructor() {
         super();
@@ -16,10 +22,10 @@ export class ProductView extends View {
 
     async init() {
         this.#productTemplate = await this.loadTemplate('./src/view/templates/product-card.html');
+        this.#setupLoadMore();
     }
 
     onUserSelected(user) {
-        // Enable buttons if a user is selected, otherwise disable them
         this.setButtonsState(user.id ? false : true);
     }
 
@@ -27,40 +33,108 @@ export class ProductView extends View {
         this.#onBuyProduct = callback;
     }
 
+    registerFilterChangeCallback(callback) {
+        this.#onFilterChange = callback;
+    }
+
+    attachFilterListeners() {
+        this.#categoryFilter?.addEventListener('change', () => {
+            if (this.#onFilterChange) this.#onFilterChange();
+        });
+        this.#brandFilter?.addEventListener('change', () => {
+            if (this.#onFilterChange) this.#onFilterChange();
+        });
+    }
+
+    getSelectedCategory() {
+        return this.#categoryFilter?.value || null;
+    }
+
+    getSelectedBrand() {
+        return this.#brandFilter?.value || null;
+    }
+
+    async loadFilters(productService) {
+        const [categories, brands] = await Promise.all([
+            productService.getCategories(),
+            productService.getBrands(),
+        ]);
+
+        if (this.#categoryFilter) {
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.id;
+                opt.textContent = cat.name;
+                this.#categoryFilter.appendChild(opt);
+            });
+        }
+
+        if (this.#brandFilter) {
+            brands.forEach(brand => {
+                const opt = document.createElement('option');
+                opt.value = brand.id;
+                opt.textContent = brand.name;
+                this.#brandFilter.appendChild(opt);
+            });
+        }
+    }
+
     render(products, disableButtons = true) {
         if (!this.#productTemplate) return;
-        const html = products.map(product => {
+        this.#allProducts = products;
+        this.#displayedCount = 0;
+        this.#productList.innerHTML = '';
+        this.#renderPage(disableButtons);
+    }
+
+    #renderPage(disableButtons = false) {
+        const nextBatch = this.#allProducts.slice(this.#displayedCount, this.#displayedCount + this.#pageSize);
+        const html = nextBatch.map((product) => {
+            const rank = product.rank ?? null;
+            const rankBadge = rank
+                ? `<div class="text-center mb-2"><span class="inline-block bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">#${rank} Recommended</span></div>`
+                : '';
             return this.replaceTemplate(this.#productTemplate, {
                 id: product.id,
                 name: product.name,
                 category: product.category,
                 price: product.price,
-                color: product.color,
-                product: JSON.stringify(product)
+                brand: product.brand || '',
+                product: JSON.stringify(product),
+                rankBadge,
             });
         }).join('');
 
-        this.#productList.innerHTML = html;
+        this.#productList.insertAdjacentHTML('beforeend', html);
+        this.#displayedCount += nextBatch.length;
         this.attachBuyButtonListeners();
-
-        // Disable all buttons by default
         this.setButtonsState(disableButtons);
+
+        if (this.#loadMoreContainer) {
+            const hasMore = this.#displayedCount < this.#allProducts.length;
+            this.#loadMoreContainer.classList.toggle('hidden', !hasMore);
+        }
+    }
+
+    #setupLoadMore() {
+        const btn = document.querySelector('#loadMoreBtn');
+        btn?.addEventListener('click', () => {
+            this.#renderPage(false);
+        });
     }
 
     setButtonsState(disabled) {
-        if (!this.#buttons) {
-            this.#buttons = document.querySelectorAll('.buy-now-btn');
-        }
-        this.#buttons.forEach(button => {
+        const buttons = this.#productList.querySelectorAll('.buy-now-btn');
+        buttons.forEach(button => {
             button.disabled = disabled;
         });
     }
 
     attachBuyButtonListeners() {
-        this.#buttons = document.querySelectorAll('.buy-now-btn');
-        this.#buttons.forEach(button => {
-
-            button.addEventListener('click', (event) => {
+        const buttons = this.#productList.querySelectorAll('.buy-now-btn:not([data-listener])');
+        buttons.forEach(button => {
+            button.setAttribute('data-listener', '1');
+            button.addEventListener('click', () => {
                 const product = JSON.parse(button.dataset.product);
                 const originalText = button.innerHTML;
 
@@ -73,7 +147,6 @@ export class ProductView extends View {
                     button.classList.add('bg-blue-600', 'hover:bg-blue-700');
                 }, 500);
                 this.#onBuyProduct(product, button);
-
             });
         });
     }

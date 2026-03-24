@@ -2,12 +2,10 @@ import { View } from './View.js';
 
 export class ModelView extends View {
     #trainModelBtn = document.querySelector('#trainModelBtn');
-    #purchasesArrow = document.querySelector('#purchasesArrow');
-    #purchasesDiv = document.querySelector('#purchasesDiv');
-    #allUsersPurchasesList = document.querySelector('#allUsersPurchasesList');
     #runRecommendationBtn = document.querySelector('#runRecommendationBtn');
     #onTrainModel;
     #onRunRecommendation;
+    #errorTimeout = null;
 
     constructor() {
         super();
@@ -28,18 +26,28 @@ export class ModelView extends View {
         this.#runRecommendationBtn.addEventListener('click', () => {
             this.#onRunRecommendation();
         });
-
-        this.#purchasesDiv.addEventListener('click', () => {
-            const purchasesList = this.#allUsersPurchasesList;
-            const isHidden = purchasesList.classList.contains('hidden');
-
-            purchasesList.classList.toggle('hidden');
-            this.#purchasesArrow.classList.toggle('rotate-180', !isHidden);
-        });
     }
 
     enableRecommendButton() {
         this.#runRecommendationBtn.disabled = false;
+    }
+
+    showError(message) {
+        if (this.#errorTimeout) clearTimeout(this.#errorTimeout);
+
+        let banner = document.querySelector('#modelErrorBanner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'modelErrorBanner';
+            banner.className = 'mt-3 px-4 py-2 bg-red-100 border border-red-300 text-red-700 text-sm rounded-lg';
+            this.#runRecommendationBtn.closest('.flex').after(banner);
+        }
+        banner.textContent = `❌ ${message}`;
+        banner.classList.remove('hidden');
+
+        this.#errorTimeout = setTimeout(() => {
+            banner.classList.add('hidden');
+        }, 5000);
     }
 
     updateTrainingProgress(progress) {
@@ -59,24 +67,5 @@ export class ModelView extends View {
                 Train Recommendation Model
             `;
         }
-    }
-
-    renderAllUsersPurchases(users) {
-        const html = users.map(user => {
-            const purchasesHtml = user.purchases.map(purchase => {
-                return `<span class="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded mr-1 mb-1">${purchase.name}</span>`;
-            }).join('');
-
-            return `
-                <div class="border-b border-gray-100 last:border-0 py-2">
-                    <p class="text-sm font-semibold text-gray-800">${user.name} <span class="font-normal text-gray-400 text-xs">(Age: ${user.age})</span></p>
-                    <div class="flex flex-wrap mt-1">
-                        ${purchasesHtml || '<span class="text-gray-400 text-xs">No purchases</span>'}
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        this.#allUsersPurchasesList.innerHTML = html;
     }
 }

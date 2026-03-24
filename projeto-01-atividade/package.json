@@ -20,6 +20,7 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "mysql2": "^3.11.0",
         "neo4j-driver": "^5.26.0"
     },
     "devDependencies": {

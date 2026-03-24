@@ -9,6 +9,9 @@ export const events = {
     modelProgressUpdate: 'model:progress-update',
     recommendationsReady: 'recommendations:ready',
     recommend: 'recommend',
+    autoRecommend: 'auto:recommend',
+    modelError: 'model:error',
+    workerLog: 'worker:log',
 }
 
 export const workerEvents = {
