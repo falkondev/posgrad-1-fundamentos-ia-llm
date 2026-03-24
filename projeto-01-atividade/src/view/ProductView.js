@@ -92,7 +92,7 @@ export class ProductView extends View {
         const html = nextBatch.map((product) => {
             const rank = product.rank ?? null;
             const rankBadge = rank
-                ? `<div class="text-center mb-2"><span class="inline-block bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">#${rank} Recommended</span></div>`
+                ? `<div class="text-center mb-2"><span class="inline-block bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">#${rank} Recomendado</span></div>`
                 : '';
             return this.replaceTemplate(this.#productTemplate, {
                 id: product.id,
@@ -138,7 +138,7 @@ export class ProductView extends View {
                 const product = JSON.parse(button.dataset.product);
                 const originalText = button.innerHTML;
 
-                button.innerHTML = '&#10003; Added';
+                button.innerHTML = '&#10003; Adicionado';
                 button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                 button.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
                 setTimeout(() => {

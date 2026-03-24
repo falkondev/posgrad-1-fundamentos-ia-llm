@@ -67,7 +67,7 @@ export class UserView extends View {
                 <div class="user-result px-3 py-2 text-sm text-gray-800 cursor-pointer hover:bg-blue-50 transition-colors"
                      data-user='${JSON.stringify(user)}'>
                     <span class="font-medium">${user.name}</span>
-                    <span class="text-gray-400 text-xs ml-1">· Age ${user.age}</span>
+                    <span class="text-gray-400 text-xs ml-1">· Idade ${user.age}</span>
                 </div>
             `).join('');
 
@@ -109,7 +109,7 @@ export class UserView extends View {
         if (!this.#purchaseTemplate) return;
 
         if (!pastPurchases || pastPurchases.length === 0) {
-            this.#pastPurchasesList.innerHTML = '<p>No past purchases found.</p>';
+            this.#pastPurchasesList.innerHTML = '<p>Nenhuma compra anterior encontrada.</p>';
             return;
         }
 
@@ -125,7 +125,7 @@ export class UserView extends View {
     }
 
     addPastPurchase(product) {
-        if (this.#pastPurchasesList.innerHTML.includes('No past purchases found')) {
+        if (this.#pastPurchasesList.innerHTML.includes('Nenhuma compra anterior encontrada')) {
             this.#pastPurchasesList.innerHTML = '';
         }
 
