@@ -7,6 +7,14 @@ let _model = null;
 
 const NEGATIVE_RATIO = 4; // 1 positivo para 4 negativos
 
+// Pesos das features: prioriza categoria, depois marca, preço e idade
+const FEATURE_WEIGHTS = {
+    category: 0.4,
+    brand: 0.3,
+    price: 0.2,
+    age: 0.1,
+};
+
 // Normalização range 0-1
 const normalize = (value, min, max) => (max === min) ? 0.5 : (value - min) / (max - min);
 
@@ -84,18 +92,17 @@ function makeContext(products, users, orders, { minAge, maxAge, minPrice, maxPri
 }
 
 /**
- * Codifica um produto em vetor de features
- * [price_norm, avg_age_norm, category_onehot..., brand_onehot...]
+ * Codifica um produto em vetor de features com pesos aplicados
  */
 function encodeProduct(product, context) {
-    const price = normalize(parseFloat(product.price), context.minPrice, context.maxPrice);
-    const avgAge = context.productAvgAgeNorm[String(product.id)] ?? 0.5;
+    const price = normalize(parseFloat(product.price), context.minPrice, context.maxPrice) * FEATURE_WEIGHTS.price;
+    const avgAge = (context.productAvgAgeNorm[String(product.id)] ?? 0.5) * FEATURE_WEIGHTS.age;
 
     const categoryIdx = context.categoriesIndex[product.category] ?? 0;
-    const categoryVec = oneHot(categoryIdx, context.numCategories);
+    const categoryVec = oneHot(categoryIdx, context.numCategories).mul(FEATURE_WEIGHTS.category);
 
     const brandIdx = context.brandsIndex[product.brand] ?? 0;
-    const brandVec = oneHot(brandIdx, context.numBrands);
+    const brandVec = oneHot(brandIdx, context.numBrands).mul(FEATURE_WEIGHTS.brand);
 
     return tf.concat1d([
         tf.tensor1d([price]),
@@ -106,9 +113,11 @@ function encodeProduct(product, context) {
 }
 
 /**
- * Codifica um usuário como média dos vetores dos seus produtos comprados
+ * Codifica um usuário como média dos vetores dos seus produtos comprados.
+ * Fallback: se não houver compras, usa a idade do usuário para gerar um vetor
+ * parcial que ainda permite sugestões baseadas em faixa etária.
  */
-function encodeUser(userProducts, context) {
+function encodeUser(userProducts, context, user = null) {
     if (userProducts.length) {
         const vectors = userProducts.map(p => encodeProduct(p, context));
         const stacked = tf.stack(vectors);
@@ -116,6 +125,14 @@ function encodeUser(userProducts, context) {
         vectors.forEach(v => v.dispose());
         stacked.dispose();
         return mean;
+    }
+
+    // Fallback por idade: ativa apenas a dimensão de idade quando não há histórico
+    if (user?.age != null) {
+        const ageNorm = normalize(user.age, context.minAge, context.maxAge) * FEATURE_WEIGHTS.age;
+        const vec = new Array(context.dimensions).fill(0);
+        vec[1] = ageNorm; // índice 1 = avg_age na ordem do encodeProduct
+        return tf.tensor2d(vec, [1, context.dimensions]);
     }
 
     return tf.zeros([1, context.dimensions]);
@@ -404,7 +421,7 @@ async function recommend(user) {
         userProducts = user.purchases || [];
     }
 
-    const userVector = encodeUser(userProducts, ctx).dataSync();
+    const userVector = encodeUser(userProducts, ctx, user).dataSync();
 
     // Tenta buscar os produtos mais similares no Neo4j para reduzir o conjunto de candidatos
     let candidateProducts = null;

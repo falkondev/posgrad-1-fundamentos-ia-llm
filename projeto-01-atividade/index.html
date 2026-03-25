@@ -11,54 +11,29 @@
 <body class="bg-gray-100 min-h-screen py-8 px-4">
     <div class="max-w-7xl mx-auto">
 
-        <!-- Header -->
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">Sistema de Recomendação E-commerce</h1>
-            <p class="text-gray-500 mt-1 text-sm">Desenvolvido com rede neural TensorFlow.js</p>
+        <!-- Header + Training trigger -->
+        <header class="mb-8 flex items-center justify-between gap-4" style="margin-bottom: 2.5rem;">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Sistema de Recomendação E-commerce</h1>
+                <p class="text-gray-500 mt-1 text-sm">Desenvolvido com rede neural TensorFlow.js</p>
+            </div>
+            <button id="openTrainingModalBtn" class="shrink-0 inline-flex items-center gap-2 bg-white border border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-700 hover:text-blue-700 text-sm font-medium px-4 py-2 rounded-xl shadow-sm transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M9 2v2M2 9h2M2 15h2M22 9h-2M22 15h-2M15 22v-2M9 22v-2"/></svg>
+                Treinamento
+            </button>
         </header>
 
-        <!-- Top panels -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-
-            <!-- User Profile Card -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
-                    <h4 class="text-base font-semibold text-gray-800">Perfil do Usuário</h4>
-                </div>
-                <div class="p-6">
-                    <form id="userForm">
-                        <div class="grid grid-cols-2 gap-4 mb-6">
-                            <div>
-                                <label for="userSearch" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Selecionar Usuário</label>
-                                <div class="relative">
-                                    <input type="text" id="userSearch" placeholder="Buscar usuário por nome..."
-                                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" autocomplete="off">
-                                    <div id="userSearchResults" class="absolute z-50 w-full bg-white border border-gray-200 rounded-b-lg shadow-lg hidden max-h-48 overflow-y-auto">
-                                    </div>
-                                </div>
-                                <input type="hidden" id="selectedUserId">
-                            </div>
-                            <div>
-                                <label for="userAge" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Idade</label>
-                                <input type="number" id="userAge" disabled class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 bg-gray-50 focus:outline-none cursor-not-allowed">
-                            </div>
-                        </div>
-                    </form>
-
-                    <div id="pastPurchasesContainer">
-                        <h5 class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Compras Anteriores</h5>
-                        <div id="pastPurchasesList" class="space-y-2"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Model Training Card -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+        <!-- Training Modal -->
+        <div id="trainingModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm mb-4">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-lg mx-4">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 rounded-t-2xl flex items-center justify-between">
                     <h4 class="text-base font-semibold text-gray-800">Treinamento do Modelo</h4>
+                    <button id="closeTrainingModalBtn" class="text-gray-400 hover:text-gray-700 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
                 </div>
                 <div class="p-6">
-                    <div class="flex flex-wrap gap-3 mb-6">
+                    <div class="flex flex-wrap gap-3">
                         <button id="trainModelBtn" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M9 2v2M2 9h2M2 15h2M22 9h-2M22 15h-2M15 22v-2M9 22v-2"/></svg>
                             Treinar Modelo de Recomendação
@@ -76,37 +51,75 @@
             </div>
         </div>
 
-        <!-- Event Log Panel -->
-        <div class="bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-white">Log de Eventos</h2>
-                <div class="flex items-center gap-3">
-                    <button id="clearLogBtn" class="text-xs text-gray-400 hover:text-white transition-colors">Limpar</button>
-                    <button id="toggleLogBtn" class="text-xs text-gray-400 hover:text-white transition-colors border border-gray-600 hover:border-gray-400 px-2 py-1 rounded">Minimizar</button>
+        <!-- Main two-column layout: Log (left) | User Profile (right) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8" style="column-gap: 2rem; row-gap: 2rem; margin-bottom: 2.5rem;">
+
+            <!-- Event Log Panel -->
+            <div class="bg-gray-800 rounded-2xl shadow-lg overflow-hidden flex flex-col">
+                <div class="flex justify-between items-center px-6 py-4 border-b border-gray-700">
+                    <h2 class="text-base font-bold text-white">Log de Eventos</h2>
+                    <div class="flex items-center gap-3">
+                        <button id="clearLogBtn" class="text-xs text-gray-400 hover:text-white transition-colors">Limpar</button>
+                        <button id="toggleLogBtn" class="text-xs text-gray-400 hover:text-white transition-colors border border-gray-600 hover:border-gray-400 px-2 py-1 rounded">Minimizar</button>
+                    </div>
+                </div>
+                <div id="eventLog" class="bg-gray-900 p-4 h-80 overflow-y-auto font-mono text-xs space-y-1.5">
                 </div>
             </div>
-            <div id="eventLog" class="bg-gray-900 rounded-lg p-3 h-64 overflow-y-auto font-mono text-xs space-y-1">
+
+            <!-- User Profile Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <h4 class="text-base font-semibold text-gray-800">Perfil do Usuário</h4>
+                </div>
+                <div class="p-6 flex flex-col flex-1 min-h-0 overflow-visible">
+                    <form id="userForm">
+                        <div class="grid grid-cols-2 gap-x-5 gap-y-4 mb-6">
+                            <div>
+                                <label for="userSearch" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Selecionar Usuário</label>
+                                <div class="relative">
+                                    <input type="text" id="userSearch" placeholder="Buscar usuário por nome..."
+                                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" autocomplete="off">
+                                    <div id="userSearchResults" class="absolute z-50 w-full bg-white border border-gray-200 rounded-b-lg shadow-lg hidden max-h-48 overflow-y-auto mt-0.5">
+                                    </div>
+                                </div>
+                                <input type="hidden" id="selectedUserId">
+                            </div>
+                            <div>
+                                <label for="userAge" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Idade</label>
+                                <input type="number" id="userAge" disabled class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 bg-gray-50 focus:outline-none cursor-not-allowed">
+                            </div>
+                        </div>
+                    </form>
+
+                    <div id="pastPurchasesContainer" class="flex flex-col min-h-0 flex-1 pt-1">
+                        <h5 class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Compras Anteriores</h5>
+                        <div id="pastPurchasesList" class="space-y-2.5 overflow-y-auto flex-1 min-h-0 pr-2"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Products Section -->
         <div class="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <h3 class="text-xl font-bold text-gray-900">Produtos</h3>
-            <div class="flex flex-col gap-2 w-full sm:w-auto">
-                <div class="relative w-full">
+            <div class="w-full" style="max-width: 56rem;">
+                <div class="flex flex-col sm:flex-row gap-2 w-full">
+                    <div class="relative w-full" style="min-width: 18rem;">
                     <input type="text" id="productSearch" placeholder="Buscar produtos por nome..."
                         class="w-full border border-gray-300 rounded-lg px-4 py-2 pl-10 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
                     </svg>
-                </div>
-                <div class="flex gap-2">
+                    </div>
+                    <div class="flex gap-2 w-full" style="min-width: 20rem;">
                     <select id="categoryFilter" class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Todas as categorias</option>
                     </select>
                     <select id="brandFilter" class="flex-1 border border-gray-300 bg-white text-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Todas as marcas</option>
                     </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -120,6 +133,22 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.5.1/dist/tfjs-vis.umd.min.js"></script>
     <script type="module" src="./src/index.js"></script>
+    <script>
+        const modal = document.getElementById('trainingModal');
+        const toggleModal = () => {
+            const isHidden = modal.classList.contains('hidden');
+            modal.classList.toggle('hidden', !isHidden);
+            modal.classList.toggle('flex', isHidden);
+        };
+        document.getElementById('openTrainingModalBtn').addEventListener('click', toggleModal);
+        const closeModal = () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+        document.getElementById('closeTrainingModalBtn').addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+    </script>
 </body>
 
 </html>
